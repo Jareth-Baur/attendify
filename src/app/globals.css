@@ -24,3 +24,41 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  body {
+    background: white;
+  }
+
+  aside {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  .qr-card-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 5mm !important;
+  }
+
+  .qr-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+
+    width: 58mm;
+    height: 85mm;
+
+    padding: 5mm;
+
+    border: 1px solid black;
+    border-radius: 0;
+  }
+}

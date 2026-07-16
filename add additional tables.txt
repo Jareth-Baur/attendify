@@ -1,0 +1,183 @@
+-- =========================================================
+-- SCHOOL CALENDAR
+-- Tracks non-school days such as holidays and suspensions.
+-- Weekends are calculated automatically by the application.
+-- =========================================================
+
+create type public.calendar_day_type as enum (
+  'holiday',
+  'suspension',
+  'special_non_school_day'
+);
+
+create table public.school_calendar (
+  id uuid primary key default gen_random_uuid(),
+
+  calendar_date date not null unique,
+
+  day_type public.calendar_day_type not null,
+
+  description text not null,
+
+  created_by uuid
+    references public.profiles(id)
+    on delete set null,
+
+  created_at timestamptz not null default now()
+);
+
+
+-- =========================================================
+-- ATTENDANCE DAYS
+-- Tracks whether attendance for a specific section/date
+-- has been finalized.
+-- =========================================================
+
+create table public.attendance_days (
+  id uuid primary key default gen_random_uuid(),
+
+  section_id uuid not null
+    references public.sections(id)
+    on delete cascade,
+
+  attendance_date date not null,
+
+  is_finalized boolean not null default false,
+
+  finalized_at timestamptz,
+
+  finalized_by uuid
+    references public.profiles(id)
+    on delete set null,
+
+  created_at timestamptz not null default now(),
+
+  constraint unique_section_attendance_day
+    unique (
+      section_id,
+      attendance_date
+    )
+);
+
+
+-- =========================================================
+-- INDEXES
+-- =========================================================
+
+create index school_calendar_date_idx
+on public.school_calendar(calendar_date);
+
+
+create index attendance_days_section_date_idx
+on public.attendance_days(
+  section_id,
+  attendance_date
+);
+
+
+-- =========================================================
+-- ENABLE RLS
+-- =========================================================
+
+alter table public.school_calendar
+enable row level security;
+
+alter table public.attendance_days
+enable row level security;
+
+
+-- =========================================================
+-- SCHOOL CALENDAR POLICIES
+-- =========================================================
+
+create policy "Authenticated users can view school calendar"
+on public.school_calendar
+for select
+to authenticated
+using (true);
+
+
+create policy "Authenticated users can create calendar events"
+on public.school_calendar
+for insert
+to authenticated
+with check (
+  created_by = (select auth.uid())
+);
+
+
+create policy "Authenticated users can update calendar events"
+on public.school_calendar
+for update
+to authenticated
+using (true)
+with check (true);
+
+
+create policy "Authenticated users can delete calendar events"
+on public.school_calendar
+for delete
+to authenticated
+using (true);
+
+
+-- =========================================================
+-- ATTENDANCE DAY POLICIES
+-- =========================================================
+
+create policy "Teachers can view attendance days"
+on public.attendance_days
+for select
+to authenticated
+using (
+  exists (
+    select 1
+    from public.sections
+    where sections.id =
+      attendance_days.section_id
+    and sections.adviser_id =
+      (select auth.uid())
+  )
+);
+
+
+create policy "Teachers can create attendance days"
+on public.attendance_days
+for insert
+to authenticated
+with check (
+  exists (
+    select 1
+    from public.sections
+    where sections.id =
+      attendance_days.section_id
+    and sections.adviser_id =
+      (select auth.uid())
+  )
+);
+
+
+create policy "Teachers can update attendance days"
+on public.attendance_days
+for update
+to authenticated
+using (
+  exists (
+    select 1
+    from public.sections
+    where sections.id =
+      attendance_days.section_id
+    and sections.adviser_id =
+      (select auth.uid())
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.sections
+    where sections.id =
+      attendance_days.section_id
+    and sections.adviser_id =
+      (select auth.uid())
+  )
+);

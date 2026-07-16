@@ -1,37 +1,82 @@
-import { redirect } from "next/navigation";
-
 import { createClient } from "@/lib/supabase/server";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: schoolYear } = await supabase
+    .from("school_years")
+    .select("*")
+    .eq("is_active", true)
+    .maybeSingle();
 
-  if (!user) {
-    redirect("/login");
-  }
+  const { count: studentCount } = await supabase
+    .from("students")
+    .select("*", {
+      count: "exact",
+      head: true,
+    });
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, role")
-    .eq("id", user.id)
-    .single();
+  const today = new Date()
+    .toISOString()
+    .split("T")[0];
+
+  const { count: attendanceCount } = await supabase
+    .from("attendance_records")
+    .select("*", {
+      count: "exact",
+      head: true,
+    })
+    .eq("attendance_date", today);
 
   return (
-    <main className="p-10">
-      <h1 className="text-3xl font-bold">
-        Dashboard
-      </h1>
+    <div>
+      <div>
+        <h1 className="text-3xl font-bold">
+          Dashboard
+        </h1>
 
-      <p className="mt-4">
-        Welcome, {profile?.full_name ?? user.email}
+        <p className="mt-1 text-gray-500">
+          School Year{" "}
+          {schoolYear?.name ?? "Not configured"}
+        </p>
+      </div>
+
+      <div className="mt-8 grid gap-6 md:grid-cols-3">
+        <DashboardCard
+          title="Students"
+          value={studentCount ?? 0}
+        />
+
+        <DashboardCard
+          title="Present Today"
+          value={attendanceCount ?? 0}
+        />
+
+        <DashboardCard
+          title="School Year"
+          value={schoolYear?.name ?? "N/A"}
+        />
+      </div>
+    </div>
+  );
+}
+
+function DashboardCard({
+  title,
+  value,
+}: {
+  title: string;
+  value: string | number;
+}) {
+  return (
+    <div className="rounded-xl border bg-white p-6 shadow-sm">
+      <p className="text-sm text-gray-500">
+        {title}
       </p>
 
-      <p>
-        Role: {profile?.role ?? "teacher"}
+      <p className="mt-2 text-3xl font-bold">
+        {value}
       </p>
-    </main>
+    </div>
   );
 }
