@@ -1,0 +1,239 @@
+-- =========================================================
+-- ENABLE ROW LEVEL SECURITY
+-- =========================================================
+
+alter table public.profiles
+enable row level security;
+
+alter table public.school_years
+enable row level security;
+
+alter table public.sections
+enable row level security;
+
+alter table public.students
+enable row level security;
+
+alter table public.attendance_records
+enable row level security;
+
+
+-- =========================================================
+-- PROFILES
+-- Users can only view and update their own profile
+-- =========================================================
+
+create policy "Users can view own profile"
+on public.profiles
+for select
+to authenticated
+using (
+  id = (select auth.uid())
+);
+
+
+create policy "Users can update own profile"
+on public.profiles
+for update
+to authenticated
+using (
+  id = (select auth.uid())
+)
+with check (
+  id = (select auth.uid())
+);
+
+
+-- =========================================================
+-- SCHOOL YEARS
+-- Authenticated users can view school years
+-- =========================================================
+
+create policy "Authenticated users can view school years"
+on public.school_years
+for select
+to authenticated
+using (true);
+
+
+-- =========================================================
+-- SECTIONS
+-- Authenticated users can view sections
+-- =========================================================
+
+create policy "Authenticated users can view sections"
+on public.sections
+for select
+to authenticated
+using (true);
+
+
+-- Authenticated users can create sections
+create policy "Authenticated users can create sections"
+on public.sections
+for insert
+to authenticated
+with check (
+  adviser_id = (select auth.uid())
+);
+
+
+-- Teachers can update their own sections
+create policy "Teachers can update own sections"
+on public.sections
+for update
+to authenticated
+using (
+  adviser_id = (select auth.uid())
+)
+with check (
+  adviser_id = (select auth.uid())
+);
+
+
+-- Teachers can delete their own sections
+create policy "Teachers can delete own sections"
+on public.sections
+for delete
+to authenticated
+using (
+  adviser_id = (select auth.uid())
+);
+
+
+-- =========================================================
+-- STUDENTS
+-- Authenticated users can view students
+-- =========================================================
+
+create policy "Authenticated users can view students"
+on public.students
+for select
+to authenticated
+using (true);
+
+
+-- Teachers can create students in their sections
+create policy "Teachers can create students"
+on public.students
+for insert
+to authenticated
+with check (
+  exists (
+    select 1
+    from public.sections
+    where sections.id = students.section_id
+      and sections.adviser_id = (select auth.uid())
+  )
+);
+
+
+-- Teachers can update students in their sections
+create policy "Teachers can update students"
+on public.students
+for update
+to authenticated
+using (
+  exists (
+    select 1
+    from public.sections
+    where sections.id = students.section_id
+      and sections.adviser_id = (select auth.uid())
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.sections
+    where sections.id = students.section_id
+      and sections.adviser_id = (select auth.uid())
+  )
+);
+
+
+-- Teachers can delete students in their sections
+create policy "Teachers can delete students"
+on public.students
+for delete
+to authenticated
+using (
+  exists (
+    select 1
+    from public.sections
+    where sections.id = students.section_id
+      and sections.adviser_id = (select auth.uid())
+  )
+);
+
+
+-- =========================================================
+-- ATTENDANCE RECORDS
+-- Teachers can view attendance from their sections
+-- =========================================================
+
+create policy "Teachers can view attendance"
+on public.attendance_records
+for select
+to authenticated
+using (
+  exists (
+    select 1
+    from public.students
+    join public.sections
+      on sections.id = students.section_id
+    where students.id = attendance_records.student_id
+      and sections.adviser_id = (select auth.uid())
+  )
+);
+
+
+-- Teachers can record attendance
+create policy "Teachers can record attendance"
+on public.attendance_records
+for insert
+to authenticated
+with check (
+  recorded_by = (select auth.uid())
+  and exists (
+    select 1
+    from public.students
+    join public.sections
+      on sections.id = students.section_id
+    where students.id = attendance_records.student_id
+      and sections.adviser_id = (select auth.uid())
+  )
+);
+
+
+-- Teachers can update attendance
+create policy "Teachers can update attendance"
+on public.attendance_records
+for update
+to authenticated
+using (
+  exists (
+    select 1
+    from public.students
+    join public.sections
+      on sections.id = students.section_id
+    where students.id = attendance_records.student_id
+      and sections.adviser_id = (select auth.uid())
+  )
+);
+
+
+-- Teachers can delete attendance
+create policy "Teachers can delete attendance"
+on public.attendance_records
+for delete
+to authenticated
+using (
+  exists (
+    select 1
+    from public.students
+    join public.sections
+      on sections.id = students.section_id
+    where students.id = attendance_records.student_id
+      and sections.adviser_id = (select auth.uid())
+  )
+);
