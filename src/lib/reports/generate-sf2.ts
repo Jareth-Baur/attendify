@@ -1322,6 +1322,18 @@ export async function generateSF2({
     const SUMMARY_FEMALE_COLUMN = 45; // AS
     const SUMMARY_TOTAL_COLUMN = 46; // AT
 
+    worksheet.getColumn(
+        SUMMARY_MALE_COLUMN
+    ).width = 7;
+
+    worksheet.getColumn(
+        SUMMARY_FEMALE_COLUMN
+    ).width = 7;
+
+    worksheet.getColumn(
+        SUMMARY_TOTAL_COLUMN
+    ).width = 8;
+
     function findSummaryRow(
         searchText: string
     ): number | null {
