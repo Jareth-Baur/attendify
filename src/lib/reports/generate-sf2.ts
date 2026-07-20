@@ -403,7 +403,7 @@ export async function generateSF2({
     const worksheet =
         workbook.getWorksheet(
             "school_form_2_ver2014.2.1.1"
-        );
+        )!;
 
     if (!worksheet) {
         throw new Error(
@@ -1367,45 +1367,55 @@ export async function generateSF2({
                 rowNumber
             );
 
-        const maleCell =
-            row.getCell(
-                SUMMARY_MALE_COLUMN
-            );
+        function writeCell(
+            column: number,
+            value: number
+        ) {
+            const cell =
+                row.getCell(
+                    column
+                );
 
-        const femaleCell =
-            row.getCell(
-                SUMMARY_FEMALE_COLUMN
-            );
+            const displayCell =
+                cell.master ?? cell;
 
-        const totalCell =
-            row.getCell(
-                SUMMARY_TOTAL_COLUMN
-            );
+            displayCell.value =
+                value;
 
-        maleCell.value =
-            maleValue;
+            /*
+             * Reset number formatting
+             * on the merged-cell master.
+             * The SF2 template uses
+             * integer formats in these
+             * rows, so decimals and
+             * percentages can otherwise
+             * display as 1/0 instead of
+             * 100%/0.5.
+             */
+            displayCell.numFmt =
+                numberFormat;
 
-        femaleCell.value =
-            femaleValue;
+            displayCell.style = {
+                ...displayCell.style,
+                numFmt:
+                    numberFormat,
+            };
+        }
 
-        totalCell.value =
-            totalValue;
+        writeCell(
+            SUMMARY_MALE_COLUMN,
+            maleValue
+        );
 
-        /*
-         * Reset number formatting.
-         *
-         * The original SF2 template
-         * contains percentage formats
-         * in some summary cells.
-         */
-        maleCell.numFmt =
-            numberFormat;
+        writeCell(
+            SUMMARY_FEMALE_COLUMN,
+            femaleValue
+        );
 
-        femaleCell.numFmt =
-            numberFormat;
-
-        totalCell.numFmt =
-            numberFormat;
+        writeCell(
+            SUMMARY_TOTAL_COLUMN,
+            totalValue
+        );
     }
 
     /*
@@ -1537,11 +1547,6 @@ export async function generateSF2({
         enrollmentPercentageSummaryRow !==
         null
     ) {
-        const row =
-            worksheet.getRow(
-                enrollmentPercentageSummaryRow
-            );
-
         const maleEnrollment =
             maleSummary.numberOfStudents;
 
@@ -1578,33 +1583,13 @@ export async function generateSF2({
                 totalEnrollment
                 : 0;
 
-        const maleCell =
-            row.getCell(
-                SUMMARY_MALE_COLUMN
-            );
-
-        const femaleCell =
-            row.getCell(
-                SUMMARY_FEMALE_COLUMN
-            );
-
-        const totalCell =
-            row.getCell(
-                SUMMARY_TOTAL_COLUMN
-            );
-
-        maleCell.value =
-            malePercentage;
-
-        femaleCell.value =
-            femalePercentage;
-
-        totalCell.value =
-            totalPercentage;
-
-        maleCell.numFmt = "0%";
-        femaleCell.numFmt = "0%";
-        totalCell.numFmt = "0%";
+        writeSummaryValues(
+            enrollmentPercentageSummaryRow,
+            malePercentage,
+            femalePercentage,
+            totalPercentage,
+            "0%"
+        );
     }
 
     function roundToTwoDecimals(
@@ -1631,47 +1616,22 @@ export async function generateSF2({
         averageAttendanceSummaryRow !==
         null
     ) {
-        const row =
-            worksheet.getRow(
-                averageAttendanceSummaryRow
-            );
-
-        const maleCell =
-            row.getCell(
-                SUMMARY_MALE_COLUMN
-            );
-
-        const femaleCell =
-            row.getCell(
-                SUMMARY_FEMALE_COLUMN
-            );
-
-        const totalCell =
-            row.getCell(
-                SUMMARY_TOTAL_COLUMN
-            );
-
-        maleCell.value =
+        writeSummaryValues(
+            averageAttendanceSummaryRow,
             roundToTwoDecimals(
                 maleSummary
                     .averageDailyAttendance
-            );
-
-        femaleCell.value =
+            ),
             roundToTwoDecimals(
                 femaleSummary
                     .averageDailyAttendance
-            );
-
-        totalCell.value =
+            ),
             roundToTwoDecimals(
                 combinedSummary
                     .averageDailyAttendance
-            );
-
-        maleCell.numFmt = "0.##";
-        femaleCell.numFmt = "0.##";
-        totalCell.numFmt = "0.##";
+            ),
+            "0.##"
+        );
     }
 
     /*
@@ -1689,44 +1649,19 @@ export async function generateSF2({
         attendancePercentageSummaryRow !==
         null
     ) {
-        const row =
-            worksheet.getRow(
-                attendancePercentageSummaryRow
-            );
-
-        const maleCell =
-            row.getCell(
-                SUMMARY_MALE_COLUMN
-            );
-
-        const femaleCell =
-            row.getCell(
-                SUMMARY_FEMALE_COLUMN
-            );
-
-        const totalCell =
-            row.getCell(
-                SUMMARY_TOTAL_COLUMN
-            );
-
-        maleCell.value =
+        writeSummaryValues(
+            attendancePercentageSummaryRow,
             maleSummary
                 .attendancePercentage /
-            100;
-
-        femaleCell.value =
+            100,
             femaleSummary
                 .attendancePercentage /
-            100;
-
-        totalCell.value =
+            100,
             combinedSummary
                 .attendancePercentage /
-            100;
-
-        maleCell.numFmt = "0%";
-        femaleCell.numFmt = "0%";
-        totalCell.numFmt = "0%";
+            100,
+            "0%"
+        );
     }
     /*
      * =========================
