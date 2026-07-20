@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { getPhilippineDate } from "@/lib/date";
 
+import { redirect } from "next/navigation";
+
 import AttendanceTable from "./AttendanceTable";
 import FinalizeAttendanceButton from "./FinalizeAttendanceButton";
 
@@ -18,14 +20,19 @@ export default async function AttendancePage({
   const selectedDate = date || getPhilippineDate();
 
   const supabase = await createClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!user) {
+    redirect("/login");
+  }
+
   const { data: section } = await supabase
     .from("sections")
     .select("id, name")
-    .eq("adviser_id", user!.id)
+    .eq("adviser_id", user.id)
     .limit(1)
     .maybeSingle();
 
