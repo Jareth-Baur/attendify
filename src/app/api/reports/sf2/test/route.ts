@@ -14,6 +14,18 @@ export async function GET() {
         } = await generateSF2({
             year: 2026,
             month: 7,
+            section: {
+                id: "test-section",
+                name: "Test Section",
+                grade_level: "1",
+                school_years: {
+                    name: "2026-2027",
+                },
+            },
+            students: [],
+            calendarEvents: [],
+            attendanceDays: [],
+            studentMovements: [],
         });
 
         return NextResponse.json({

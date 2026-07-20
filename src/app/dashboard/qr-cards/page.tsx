@@ -1,6 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import QRCardGrid from "./QRCardGrid";
 
+function firstOrNull<T>(value: T | T[] | null) {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value;
+}
+
 export default async function QRCardsPage() {
   const supabase = await createClient();
 
@@ -59,7 +67,25 @@ export default async function QRCardsPage() {
           </p>
         </div>
       ) : (
-        <QRCardGrid students={students} />
+        <QRCardGrid
+          students={students.map((student) => {
+            const section = firstOrNull(
+              student.sections
+            );
+
+            return {
+              ...student,
+              sections: section
+                ? {
+                    ...section,
+                    school_years: firstOrNull(
+                      section.school_years
+                    ),
+                  }
+                : null,
+            };
+          })}
+        />
       )}
     </div>
   );

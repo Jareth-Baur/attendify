@@ -10,6 +10,14 @@ interface StudentPageProps {
   }>;
 }
 
+function firstOrNull<T>(value: T | T[] | null) {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value;
+}
+
 export default async function StudentPage({ params }: StudentPageProps) {
   const { id } = await params;
 
@@ -47,6 +55,14 @@ export default async function StudentPage({ params }: StudentPageProps) {
   const fullName = [student.first_name, student.middle_name, student.last_name]
     .filter(Boolean)
     .join(" ");
+
+  const section = firstOrNull(
+    student.sections
+  );
+
+  const schoolYear = firstOrNull(
+    section?.school_years ?? null
+  );
 
   return (
     <div className="max-w-5xl">
@@ -94,14 +110,14 @@ export default async function StudentPage({ params }: StudentPageProps) {
 
             <InfoRow
               label="Grade Level"
-              value={student.sections?.grade_level ?? "—"}
+              value={section?.grade_level ?? "—"}
             />
 
-            <InfoRow label="Section" value={student.sections?.name ?? "—"} />
+            <InfoRow label="Section" value={section?.name ?? "—"} />
 
             <InfoRow
               label="School Year"
-              value={student.sections?.school_years?.name ?? "—"}
+              value={schoolYear?.name ?? "—"}
             />
           </dl>
         </div>

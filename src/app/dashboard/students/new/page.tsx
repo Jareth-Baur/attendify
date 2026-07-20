@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
@@ -218,12 +219,12 @@ export default async function NewStudentPage() {
         </div>
 
         <div className="flex justify-end gap-3">
-          <a
+          <Link
             href="/dashboard/students"
             className="rounded-lg border px-5 py-3 text-sm font-medium"
           >
             Cancel
-          </a>
+          </Link>
 
           <button
             type="submit"

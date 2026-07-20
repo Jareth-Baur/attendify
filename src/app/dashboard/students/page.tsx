@@ -2,6 +2,14 @@ import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
 
+function firstOrNull<T>(value: T | T[] | null) {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value;
+}
+
 export default async function StudentsPage() {
   const supabase = await createClient();
 
@@ -121,7 +129,7 @@ export default async function StudentsPage() {
                     </td>
 
                     <td className="px-6 py-4 text-sm">
-                      {student.sections?.name ?? "—"}
+                      {firstOrNull(student.sections)?.name ?? "—"}
                     </td>
 
                     <td className="px-6 py-4 text-right">

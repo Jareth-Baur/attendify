@@ -9,7 +9,7 @@ export default function ScannerPage() {
         </h1>
 
         <p className="mt-1 text-gray-500">
-          Scan a student's QR attendance card.
+          Scan a student&apos;s QR attendance card.
         </p>
       </div>
 
