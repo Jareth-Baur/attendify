@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { createClient } from "@/lib/supabase/server";
+import LogoutButton from "@/components/auth/LogoutButton";
+import { getAuthorizedUser } from "@/lib/auth-server";
 
 const navigation = [
   {
@@ -39,21 +40,11 @@ export default async function DashboardLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthorizedUser();
 
   if (!user) {
     redirect("/login");
   }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, role")
-    .eq("id", user.id)
-    .single();
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -82,12 +73,14 @@ export default async function DashboardLayout({
 
         <div className="border-t p-4">
           <p className="text-sm font-medium">
-            {profile?.full_name ?? user.email}
+            {user.name ?? user.email}
           </p>
 
           <p className="text-xs capitalize text-gray-500">
-            {profile?.role ?? "teacher"}
+            {user.role}
           </p>
+
+          <LogoutButton />
         </div>
       </aside>
 

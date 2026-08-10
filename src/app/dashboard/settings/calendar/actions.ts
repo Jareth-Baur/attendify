@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthorizedUser } from "@/lib/auth-server";
 
 type CalendarDayType =
     | "holiday"
@@ -13,9 +14,7 @@ export async function createCalendarEvent(
 ) {
     const supabase = await createClient();
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthorizedUser();
 
     if (!user) {
         return {
@@ -95,9 +94,7 @@ export async function deleteCalendarEvent(
 ) {
     const supabase = await createClient();
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthorizedUser();
 
     if (!user) {
         return {

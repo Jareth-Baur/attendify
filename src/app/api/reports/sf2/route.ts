@@ -5,6 +5,7 @@ import {
 
 import { createClient } from "@/lib/supabase/server";
 import { generateSF2 } from "@/lib/reports/generate-sf2";
+import { getAuthorizedUser } from "@/lib/auth-server";
 
 export async function GET(
   request: NextRequest
@@ -19,9 +20,7 @@ export async function GET(
      * =========================
      */
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthorizedUser();
 
     if (!user) {
       return NextResponse.json(

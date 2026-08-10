@@ -144,7 +144,12 @@ Authentication
 
 ## Phase 5
 
-Teacher module
+Core Data Layer
+
+- repositories
+- services
+- API response helpers
+- error handling
 
 ---
 
@@ -156,29 +161,36 @@ Student module
 
 ## Phase 7
 
-Attendance
+Teacher Module
 
 ---
 
 ## Phase 8
 
-QR Attendance
+Attendance
 
 ---
 
 ## Phase 9
 
-Reports
-
-- SF2
+QR Attendance
 
 ---
 
 ## Phase 10
 
-Deployment
+Reports
+
+- SF2
+
 
 ---
+
+## Phase 11
+
+Deployment
+
+
 
 # After every phase
 

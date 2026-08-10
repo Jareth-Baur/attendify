@@ -4,6 +4,7 @@ import {
 } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAuthorizedUser } from "@/lib/auth-server";
 
 type MovementType =
     | "transferred_in"
@@ -43,14 +44,10 @@ export async function POST(
          * =========================
          */
 
-        const {
-            data: { user },
-            error: authError,
-        } =
-            await supabase.auth.getUser();
+        const user =
+            await getAuthorizedUser();
 
         if (
-            authError ||
             !user
         ) {
             return NextResponse.json(

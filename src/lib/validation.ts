@@ -8,3 +8,7 @@ export const credentialsSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
 });
+
+export const registrationSchema = credentialsSchema.extend({
+  name: z.string().trim().min(2).max(120),
+});

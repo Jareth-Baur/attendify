@@ -1,21 +1,20 @@
-import {
-    type NextRequest,
-} from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-import {
-    updateSession,
-} from "@/lib/supabase/proxy";
+import { auth } from "@/lib/auth";
+import { hasRole, authorizedRoles } from "@/lib/auth-server";
 
-export async function proxy(
-    request: NextRequest
-) {
-    return await updateSession(
-        request
-    );
+export async function proxy(request: NextRequest) {
+  const session = await auth.api.getSession({ headers: request.headers });
+
+  if (!session || !hasRole(session.user.role, authorizedRoles)) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
     matcher: [
-        "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+        "/dashboard/:path*",
     ],
 };

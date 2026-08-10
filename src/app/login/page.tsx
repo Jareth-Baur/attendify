@@ -3,7 +3,10 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
+
+import { authClient } from "@/lib/auth-client";
+import { credentialsSchema } from "@/lib/validation";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,18 +19,21 @@ export default function LoginPage() {
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    setLoading(true);
     setError("");
 
-    const supabase = createClient();
+    const validation = credentialsSchema.safeParse({ email, password });
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message ?? "Invalid login details.");
+      return;
+    }
 
-    if (error) {
-      setError(error.message);
+    setLoading(true);
+
+    const response = await authClient.signIn.email(validation.data);
+
+    if (response.error) {
+      setError(response.error.message ?? "Unable to sign in.");
       setLoading(false);
       return;
     }
@@ -107,6 +113,10 @@ export default function LoginPage() {
             {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
+
+        <p className="mt-4 text-center text-sm text-gray-600">
+          Need an account? <Link href="/register" className="font-medium text-black underline">Register</Link>
+        </p>
       </div>
     </main>
   );

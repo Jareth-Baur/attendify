@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getPhilippineDate } from "@/lib/date";
+import { getAuthorizedUser } from "@/lib/auth-server";
 
 interface ScanResult {
   success: boolean;
@@ -16,9 +17,7 @@ export async function recordAttendance(
 ): Promise<ScanResult> {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthorizedUser();
 
   if (!user) {
     return {
