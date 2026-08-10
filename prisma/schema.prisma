@@ -1,13 +1,428 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  ADMIN
+  TEACHER
+}
+
+enum StudentSex {
+  MALE
+  FEMALE
+}
+
+enum SchoolYearStatus {
+  PLANNED
+  ACTIVE
+  CLOSED
+}
+
+enum EnrollmentEntryType {
+  INITIAL_ENROLLMENT
+  TRANSFERRED_IN
+}
+
+enum EnrollmentExitType {
+  TRANSFERRED_OUT
+  DROPPED_OUT
+}
+
+enum AttendanceSessionStatus {
+  DRAFT
+  FINALIZED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum AttendanceSource {
+  MANUAL
+  QR_SCAN
+  FINALIZATION
+  IMPORT
+  API
+  NFC_SCAN
+  BIOMETRIC
+}
+
+enum SchoolCalendarEventType {
+  HOLIDAY
+  SUSPENSION
+  SPECIAL_NON_SCHOOL_DAY
+}
+
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  role          UserRole @default(TEACHER)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  teacher                     Teacher?
+  accounts                    Account[]
+  sessions                    Session[]
+  createdTeachers             Teacher[]             @relation("TeacherCreatedBy")
+  updatedTeachers             Teacher[]             @relation("TeacherUpdatedBy")
+  deletedTeachers             Teacher[]             @relation("TeacherDeletedBy")
+  createdStudents             Student[]             @relation("StudentCreatedBy")
+  updatedStudents             Student[]             @relation("StudentUpdatedBy")
+  deletedStudents             Student[]             @relation("StudentDeletedBy")
+  createdSchoolYears          SchoolYear[]          @relation("SchoolYearCreatedBy")
+  updatedSchoolYears          SchoolYear[]          @relation("SchoolYearUpdatedBy")
+  deletedSchoolYears          SchoolYear[]          @relation("SchoolYearDeletedBy")
+  createdSections             Section[]             @relation("SectionCreatedBy")
+  updatedSections             Section[]             @relation("SectionUpdatedBy")
+  deletedSections             Section[]             @relation("SectionDeletedBy")
+  createdSubjects             Subject[]             @relation("SubjectCreatedBy")
+  updatedSubjects             Subject[]             @relation("SubjectUpdatedBy")
+  deletedSubjects             Subject[]             @relation("SubjectDeletedBy")
+  createdTeachingAssignments  TeachingAssignment[]  @relation("TeachingAssignmentCreatedBy")
+  updatedTeachingAssignments  TeachingAssignment[]  @relation("TeachingAssignmentUpdatedBy")
+  deletedTeachingAssignments  TeachingAssignment[]  @relation("TeachingAssignmentDeletedBy")
+  createdEnrollments          Enrollment[]          @relation("EnrollmentCreatedBy")
+  updatedEnrollments          Enrollment[]          @relation("EnrollmentUpdatedBy")
+  createdAttendanceSessions   AttendanceSession[]   @relation("AttendanceSessionCreatedBy")
+  updatedAttendanceSessions   AttendanceSession[]   @relation("AttendanceSessionUpdatedBy")
+  finalizedAttendanceSessions AttendanceSession[]   @relation("AttendanceSessionFinalizedBy")
+  recordedAttendanceRecords   AttendanceRecord[]    @relation("AttendanceRecordRecordedBy")
+  updatedAttendanceRecords    AttendanceRecord[]    @relation("AttendanceRecordUpdatedBy")
+  createdSchoolCalendarEvents SchoolCalendarEvent[] @relation("SchoolCalendarEventCreatedBy")
+  updatedSchoolCalendarEvents SchoolCalendarEvent[] @relation("SchoolCalendarEventUpdatedBy")
+  deletedSchoolCalendarEvents SchoolCalendarEvent[] @relation("SchoolCalendarEventDeletedBy")
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  token     String   @unique
+  expiresAt DateTime @db.Timestamptz(3)
+  ipAddress String?
+  userAgent String?
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(uuid()) @db.Uuid
+  accountId             String
+  providerId            String
+  userId                String    @db.Uuid
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime? @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @db.Timestamptz(3)
+  scope                 String?
+  password              String?   @db.Text
+  createdAt             DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(uuid()) @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([identifier, value])
+  @@index([expiresAt])
+  @@map("verifications")
+}
+
+model Teacher {
+  userId      String    @id @db.Uuid
+  createdById String    @db.Uuid
+  updatedById String    @db.Uuid
+  deletedAt   DateTime? @db.Timestamptz(3)
+  deletedById String?   @db.Uuid
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdBy           User                 @relation("TeacherCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy           User                 @relation("TeacherUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  deletedBy           User?                @relation("TeacherDeletedBy", fields: [deletedById], references: [id], onDelete: Restrict)
+  advisedSections     Section[]            @relation("SectionAdviser")
+  teachingAssignments TeachingAssignment[]
+
+  @@index([deletedAt])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedById])
+  @@map("teachers")
+}
+
+model Student {
+  id          String     @id @default(uuid()) @db.Uuid
+  lrn         String?    @unique @db.VarChar(12)
+  firstName   String
+  middleName  String?
+  lastName    String
+  sex         StudentSex
+  qrToken     String     @unique @default(uuid()) @db.Uuid
+  createdById String     @db.Uuid
+  updatedById String     @db.Uuid
+  deletedAt   DateTime?  @db.Timestamptz(3)
+  deletedById String?    @db.Uuid
+  createdAt   DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @db.Timestamptz(3)
+
+  createdBy   User         @relation("StudentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy   User         @relation("StudentUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  deletedBy   User?        @relation("StudentDeletedBy", fields: [deletedById], references: [id], onDelete: Restrict)
+  enrollments Enrollment[]
+
+  @@index([lastName, firstName])
+  @@index([deletedAt])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedById])
+  @@map("students")
+}
+
+model SchoolYear {
+  id          String           @id @default(uuid()) @db.Uuid
+  name        String           @unique
+  startDate   DateTime         @db.Date
+  endDate     DateTime         @db.Date
+  status      SchoolYearStatus @default(PLANNED)
+  createdById String           @db.Uuid
+  updatedById String           @db.Uuid
+  deletedAt   DateTime?        @db.Timestamptz(3)
+  deletedById String?          @db.Uuid
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+
+  createdBy            User                  @relation("SchoolYearCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy            User                  @relation("SchoolYearUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  deletedBy            User?                 @relation("SchoolYearDeletedBy", fields: [deletedById], references: [id], onDelete: Restrict)
+  sections             Section[]
+  schoolCalendarEvents SchoolCalendarEvent[]
+
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedById])
+  @@map("school_years")
+}
+
+model Section {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String
+  gradeLevel   String
+  schoolYearId String    @db.Uuid
+  adviserId    String    @db.Uuid
+  createdById  String    @db.Uuid
+  updatedById  String    @db.Uuid
+  deletedAt    DateTime? @db.Timestamptz(3)
+  deletedById  String?   @db.Uuid
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+
+  schoolYear          SchoolYear           @relation(fields: [schoolYearId], references: [id], onDelete: Restrict)
+  adviser             Teacher              @relation("SectionAdviser", fields: [adviserId], references: [userId], onDelete: Restrict)
+  createdBy           User                 @relation("SectionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy           User                 @relation("SectionUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  deletedBy           User?                @relation("SectionDeletedBy", fields: [deletedById], references: [id], onDelete: Restrict)
+  enrollments         Enrollment[]
+  attendanceSessions  AttendanceSession[]
+  teachingAssignments TeachingAssignment[]
+
+  @@unique([schoolYearId, name])
+  @@index([adviserId])
+  @@index([schoolYearId])
+  @@index([deletedAt])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedById])
+  @@map("sections")
+}
+
+model Subject {
+  id          String    @id @default(uuid()) @db.Uuid
+  code        String    @unique @db.VarChar(32)
+  name        String
+  createdById String    @db.Uuid
+  updatedById String    @db.Uuid
+  deletedAt   DateTime? @db.Timestamptz(3)
+  deletedById String?   @db.Uuid
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  createdBy           User                 @relation("SubjectCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy           User                 @relation("SubjectUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  deletedBy           User?                @relation("SubjectDeletedBy", fields: [deletedById], references: [id], onDelete: Restrict)
+  teachingAssignments TeachingAssignment[]
+
+  @@index([deletedAt])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedById])
+  @@map("subjects")
+}
+
+model TeachingAssignment {
+  id          String    @id @default(uuid()) @db.Uuid
+  sectionId   String    @db.Uuid
+  subjectId   String    @db.Uuid
+  teacherId   String    @db.Uuid
+  createdById String    @db.Uuid
+  updatedById String    @db.Uuid
+  deletedAt   DateTime? @db.Timestamptz(3)
+  deletedById String?   @db.Uuid
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  section   Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  teacher   Teacher @relation(fields: [teacherId], references: [userId], onDelete: Restrict)
+  createdBy User    @relation("TeachingAssignmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy User    @relation("TeachingAssignmentUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  deletedBy User?   @relation("TeachingAssignmentDeletedBy", fields: [deletedById], references: [id], onDelete: Restrict)
+
+  @@unique([sectionId, subjectId, teacherId])
+  @@index([subjectId])
+  @@index([teacherId])
+  @@index([deletedAt])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedById])
+  @@map("teaching_assignments")
+}
+
+model Enrollment {
+  id          String              @id @default(uuid()) @db.Uuid
+  studentId   String              @db.Uuid
+  sectionId   String              @db.Uuid
+  enrolledOn  DateTime            @db.Date
+  entryType   EnrollmentEntryType @default(INITIAL_ENROLLMENT)
+  endedOn     DateTime?           @db.Date
+  exitType    EnrollmentExitType?
+  createdById String              @db.Uuid
+  updatedById String              @db.Uuid
+  createdAt   DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime            @updatedAt @db.Timestamptz(3)
+
+  student           Student            @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  section           Section            @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  createdBy         User               @relation("EnrollmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User               @relation("EnrollmentUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  attendanceRecords AttendanceRecord[]
+
+  @@unique([studentId, sectionId, enrolledOn])
+  @@index([sectionId, endedOn])
+  @@index([studentId, enrolledOn])
+  @@index([createdById])
+  @@index([updatedById])
+  @@map("enrollments")
+}
+
+model AttendanceSession {
+  id            String                  @id @default(uuid()) @db.Uuid
+  sectionId     String                  @db.Uuid
+  sessionDate   DateTime                @db.Date
+  status        AttendanceSessionStatus @default(DRAFT)
+  createdById   String                  @db.Uuid
+  updatedById   String                  @db.Uuid
+  finalizedAt   DateTime?               @db.Timestamptz(3)
+  finalizedById String?                 @db.Uuid
+  createdAt     DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime                @updatedAt @db.Timestamptz(3)
+
+  section           Section            @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  createdBy         User               @relation("AttendanceSessionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy         User               @relation("AttendanceSessionUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  finalizedBy       User?              @relation("AttendanceSessionFinalizedBy", fields: [finalizedById], references: [id], onDelete: Restrict)
+  attendanceRecords AttendanceRecord[]
+
+  @@unique([sectionId, sessionDate])
+  @@index([sessionDate, status])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([finalizedById])
+  @@map("attendance_sessions")
+}
+
+model AttendanceRecord {
+  id                  String           @id @default(uuid()) @db.Uuid
+  attendanceSessionId String           @db.Uuid
+  enrollmentId        String           @db.Uuid
+  status              AttendanceStatus
+  source              AttendanceSource @default(MANUAL)
+  scannedAt           DateTime?        @db.Timestamptz(3)
+  notes               String?          @db.Text
+  recordedById        String           @db.Uuid
+  updatedById         String           @db.Uuid
+  createdAt           DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime         @updatedAt @db.Timestamptz(3)
+
+  attendanceSession AttendanceSession @relation(fields: [attendanceSessionId], references: [id], onDelete: Restrict)
+  enrollment        Enrollment        @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  recordedBy        User              @relation("AttendanceRecordRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+  updatedBy         User              @relation("AttendanceRecordUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([attendanceSessionId, enrollmentId])
+  @@index([enrollmentId])
+  @@index([recordedById, createdAt])
+  @@index([updatedById])
+  @@map("attendance_records")
+}
+
+model SchoolCalendarEvent {
+  id           String                  @id @default(uuid()) @db.Uuid
+  schoolYearId String                  @db.Uuid
+  eventDate    DateTime                @db.Date
+  type         SchoolCalendarEventType
+  description  String
+  createdById  String                  @db.Uuid
+  updatedById  String                  @db.Uuid
+  deletedAt    DateTime?               @db.Timestamptz(3)
+  deletedById  String?                 @db.Uuid
+  createdAt    DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime                @updatedAt @db.Timestamptz(3)
+
+  schoolYear SchoolYear @relation(fields: [schoolYearId], references: [id], onDelete: Cascade)
+  createdBy  User       @relation("SchoolCalendarEventCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy  User       @relation("SchoolCalendarEventUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  deletedBy  User?      @relation("SchoolCalendarEventDeletedBy", fields: [deletedById], references: [id], onDelete: Restrict)
+
+  @@unique([schoolYearId, eventDate])
+  @@index([eventDate])
+  @@index([deletedAt])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([deletedById])
+  @@map("school_calendar_events")
 }
