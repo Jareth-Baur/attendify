@@ -341,13 +341,15 @@ export async function GET(
         "section_id",
         section.id
       )
-      .gte(
-        "effective_date",
-        startDate
-      )
       .lte(
         "effective_date",
         endDate
+      )
+      .order(
+        "effective_date",
+        {
+          ascending: true,
+        }
       );
 
     if (studentMovementsError) {

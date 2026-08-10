@@ -25,6 +25,7 @@ interface Student {
     last_name: string;
     sex: string;
     enrollment_date: string | null;
+    is_active: boolean;
     attendance_records: AttendanceRecord[];
 }
 
@@ -558,38 +559,150 @@ export async function generateSF2({
     );
 
     /*
+    * =========================
+    * MONTH-AWARE STUDENTS
+    * =========================
+    *
+    * Determine which students
+    * belonged to the section at
+    * some point during the
+    * selected reporting month.
+    */
+
+    const reportStartDate =
+        `${year}-${String(
+            month
+        ).padStart(2, "0")}-01`;
+
+    const reportEndDate =
+        `${year}-${String(
+            month
+        ).padStart(2, "0")}-${String(
+            new Date(
+                year,
+                month,
+                0
+            ).getDate()
+        ).padStart(2, "0")}`;
+
+    const reportStudents =
+        students.filter(
+            (student) => {
+                /*
+                 * Student enrolled after
+                 * this report month.
+                 */
+                if (
+                    student.enrollment_date &&
+                    student.enrollment_date >
+                    reportEndDate
+                ) {
+                    return false;
+                }
+
+                const movements =
+                    studentMovements
+                        .filter(
+                            (movement) =>
+                                movement.student_id ===
+                                student.id
+                        )
+                        .sort(
+                            (a, b) =>
+                                a.effective_date.localeCompare(
+                                    b.effective_date
+                                )
+                        );
+
+                /*
+                 * Find the latest movement
+                 * before this month starts.
+                 */
+
+                const latestBeforeMonth =
+                    movements
+                        .filter(
+                            (movement) =>
+                                movement.effective_date <
+                                reportStartDate
+                        )
+                        .at(-1);
+
+                /*
+                 * If their latest status
+                 * before the month was
+                 * transferred out or
+                 * dropped out, they were
+                 * already inactive when
+                 * this month began.
+                 *
+                 * However, they may transfer
+                 * back in during this month.
+                 */
+
+                if (
+                    latestBeforeMonth &&
+                    (
+                        latestBeforeMonth
+                            .movement_type ===
+                        "transferred_out" ||
+                        latestBeforeMonth
+                            .movement_type ===
+                        "dropped_out"
+                    )
+                ) {
+                    const transferredInThisMonth =
+                        movements.some(
+                            (movement) =>
+                                movement.movement_type ===
+                                "transferred_in" &&
+                                movement.effective_date >=
+                                reportStartDate &&
+                                movement.effective_date <=
+                                reportEndDate
+                        );
+
+                    return transferredInThisMonth;
+                }
+
+                return true;
+            }
+        );
+
+    /*
      * =========================
      * SPLIT STUDENTS
      * =========================
      */
 
     const maleStudents =
-        students
+        reportStudents
             .filter(
                 (student) =>
                     normalizeSex(
                         student.sex
                     ) === "male"
             )
-            .sort((a, b) =>
-                a.last_name.localeCompare(
-                    b.last_name
-                )
+            .sort(
+                (a, b) =>
+                    a.last_name.localeCompare(
+                        b.last_name
+                    )
             );
 
     const femaleStudents =
-        students
+        reportStudents
             .filter(
                 (student) =>
                     normalizeSex(
                         student.sex
-                    ) ===
-                    "female"
+                    ) === "female"
             )
-            .sort((a, b) =>
-                a.last_name.localeCompare(
-                    b.last_name
-                )
+            .sort(
+                (a, b) =>
+                    a.last_name.localeCompare(
+                        b.last_name
+                    )
             );
 
     /*
@@ -606,7 +719,11 @@ export async function generateSF2({
             studentMovements.filter(
                 (movement) =>
                     movement.movement_type ===
-                    movementType
+                    movementType &&
+                    movement.effective_date >=
+                    reportStartDate &&
+                    movement.effective_date <=
+                    reportEndDate
             );
 
         let male = 0;
@@ -615,6 +732,11 @@ export async function generateSF2({
         matchingMovements.forEach(
             (movement) => {
                 const student =
+                    reportStudents.find(
+                        (student) =>
+                            student.id ===
+                            movement.student_id
+                    ) ??
                     students.find(
                         (student) =>
                             student.id ===
@@ -676,18 +798,55 @@ export async function generateSF2({
     ) {
         let totalAttendance = 0;
 
+        /*
+         * This is no longer simply:
+         *
+         * students × finalized days
+         *
+         * because students may transfer
+         * in/out during the month.
+         */
+
+        let possibleAttendance = 0;
+
         finalizedClassDays.forEach(
             (classDay) => {
                 groupStudents.forEach(
                     (student) => {
+                        /*
+                         * Skip dates where this
+                         * student was not yet
+                         * enrolled or was already
+                         * transferred/dropped.
+                         */
+
+                        if (
+                            !isStudentEligibleOnDate(
+                                student,
+                                classDay.date
+                            )
+                        ) {
+                            return;
+                        }
+
+                        /*
+                         * Student was eligible
+                         * for attendance today.
+                         */
+
+                        possibleAttendance++;
+
                         const record =
-                            student.attendance_records.find(
-                                (
-                                    attendance
-                                ) =>
-                                    attendance.attendance_date ===
-                                    classDay.date
-                            );
+                            student
+                                .attendance_records
+                                .find(
+                                    (
+                                        attendance
+                                    ) =>
+                                        attendance
+                                            .attendance_date ===
+                                        classDay.date
+                                );
 
                         if (
                             record?.status ===
@@ -708,26 +867,38 @@ export async function generateSF2({
         const numberOfDays =
             finalizedClassDays.length;
 
+        /*
+         * Average Daily Attendance:
+         *
+         * Total attendance divided by
+         * total finalized class days.
+         */
+
         const averageDailyAttendance =
             numberOfDays > 0
                 ? totalAttendance /
                 numberOfDays
                 : 0;
 
-        const possibleAttendance =
-            numberOfStudents *
-            numberOfDays;
+        /*
+         * Attendance percentage:
+         *
+         * Actual attendance divided by
+         * eligible attendance opportunities.
+         */
 
         const attendancePercentage =
             possibleAttendance > 0
-                ? (totalAttendance /
-                    possibleAttendance) *
-                100
+                ? (
+                    totalAttendance /
+                    possibleAttendance
+                ) * 100
                 : 0;
 
         return {
             numberOfStudents,
             totalAttendance,
+            possibleAttendance,
             averageDailyAttendance,
             attendancePercentage,
         };
@@ -745,8 +916,10 @@ export async function generateSF2({
 
     const combinedSummary =
         calculateGroupSummary(
-            students
+            // students
+            reportStudents
         );
+
 
     console.log(
         "SF2 Summary:",
@@ -983,6 +1156,24 @@ export async function generateSF2({
                     index
                     ];
 
+                /*
+                * Student was not enrolled or
+                * active on this date.
+                */
+
+                if (
+                    !isStudentEligibleOnDate(
+                        student,
+                        classDay.date
+                    )
+                ) {
+                    row.getCell(
+                        column
+                    ).value = null;
+
+                    return;
+                }
+
                 if (
                     !finalizedDates.has(
                         classDay.date
@@ -1114,6 +1305,16 @@ export async function generateSF2({
 
                 groupStudents.forEach(
                     (student) => {
+
+                        if (
+                            !isStudentEligibleOnDate(
+                                student,
+                                classDay.date
+                            )
+                        ) {
+                            return;
+                        }
+
                         const record =
                             student.attendance_records.find(
                                 (
@@ -1285,7 +1486,7 @@ export async function generateSF2({
         )
         .getCell(1)
         .value =
-        students.length;
+        reportStudents.length;
 
     worksheet
         .getRow(
@@ -1296,7 +1497,7 @@ export async function generateSF2({
         "Combined TOTAL Per Day";
 
     writeGroupTotals(
-        students,
+        reportStudents,
         combinedTotalRow
     );
 
@@ -1427,6 +1628,84 @@ export async function generateSF2({
         writeCell(
             SUMMARY_TOTAL_COLUMN,
             totalValue
+        );
+    }
+
+    /*
+    * =========================
+    * STUDENT ATTENDANCE
+    * ELIGIBILITY
+    * =========================
+    *
+    * Determines whether a student
+    * should be counted for attendance
+    * on a specific class day.
+    */
+
+    function isStudentEligibleOnDate(
+        student: Student,
+        date: string
+    ) {
+        /*
+         * Student has not enrolled yet.
+         */
+        if (
+            student.enrollment_date &&
+            date <
+            student.enrollment_date
+        ) {
+            return false;
+        }
+
+        /*
+         * Get all movements that
+         * happened on or before
+         * this class day.
+         */
+
+        const movements =
+            studentMovements
+                .filter(
+                    (movement) =>
+                        movement.student_id ===
+                        student.id &&
+                        movement.effective_date <=
+                        date
+                )
+                .sort(
+                    (a, b) =>
+                        a.effective_date.localeCompare(
+                            b.effective_date
+                        )
+                );
+
+        /*
+         * If there are no movements,
+         * the student is considered
+         * active after enrollment.
+         */
+
+        if (
+            movements.length === 0
+        ) {
+            return true;
+        }
+
+        /*
+         * The latest movement determines
+         * the student's status on
+         * this particular date.
+         */
+
+        const latestMovement =
+            movements[
+            movements.length - 1
+            ];
+
+        return (
+            latestMovement
+                .movement_type ===
+            "transferred_in"
         );
     }
 
@@ -1695,6 +1974,23 @@ export async function generateSF2({
             const classDay of
             finalizedClassDays
         ) {
+            /*
+             * Skip dates where this
+             * student was not yet
+             * enrolled or was already
+             * transferred/dropped.
+             */
+            if (
+                !isStudentEligibleOnDate(
+                    student,
+                    classDay.date
+                )
+            ) {
+                consecutiveAbsences = 0;
+
+                continue;
+            }
+
             const record =
                 student.attendance_records.find(
                     (attendance) =>
