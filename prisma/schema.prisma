@@ -4,9 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 enum UserRole {
@@ -189,7 +187,11 @@ model Student {
   firstName   String
   middleName  String?
   lastName    String
+  birthDate   DateTime?  @db.Date
   sex         StudentSex
+  guardianName String?
+  guardianContact String? @db.VarChar(32)
+  contactEmail String?    @db.VarChar(320)
   qrToken     String     @unique @default(uuid()) @db.Uuid
   createdById String     @db.Uuid
   updatedById String     @db.Uuid
