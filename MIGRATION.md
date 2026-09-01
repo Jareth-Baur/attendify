@@ -72,7 +72,7 @@ Status: COMPLETE
 
 # Remaining Phases
 
-## Phase 7 — Attendance Domain ⭐
+## Phase 7 — Attendance Domain
 
 This becomes the core of Attendify.
 
